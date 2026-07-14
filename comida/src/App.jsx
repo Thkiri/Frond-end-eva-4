@@ -1,122 +1,159 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect } from 'react';
+import Navbar from './components/Navbar';
+import MenuPizarra from './components/MenuPizarra';
+import { fetchPlatosChilenos } from './services/api';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+
+  const [menu, setMenu] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cocina_chilena_menu');
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error('Error cargando persistencia:', error);
+      return [];
+    }
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevoPrecio, setNuevoPrecio] = useState('');
+
+
+  useEffect(() => {
+    localStorage.setItem('cocina_chilena_menu', JSON.stringify(menu));
+  }, [menu]);
+
+
+  const cargarDesdeAPI = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const platos = await fetchPlatosChilenos();
+
+      setMenu((prev) => {
+        const idsExistentes = new Set(prev.map((p) => p.idMeal));
+        const nuevos = platos.filter((p) => !idsExistentes.has(p.idMeal));
+        return [...prev, ...nuevos];
+      });
+    } catch (err) {
+      setError(err.message || 'Error al conectar con la API.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const handleAgregarPlato = () => {
+    if (!nuevoNombre.trim()) {
+      alert(' El nombre del plato no puede estar vacío.');
+      return;
+    }
+    const precioNum = Number(nuevoPrecio);
+    if (Number.isNaN(precioNum) || precioNum < 0) {
+      alert('Precio inválido. Ingresa un número positivo.');
+      return;
+    }
+    const nuevoPlato = {
+      idMeal: `manual_${Date.now()}`,
+      strMeal: nuevoNombre.trim(),
+      strMealThumb: 'https://www.themealdb.com/images/media/meals/p6hgrj1782851874.jpg',
+      precio: precioNum,
+      disponible: true,
+    };
+    setMenu((prev) => [...prev, nuevoPlato]);
+    setNuevoNombre('');
+    setNuevoPrecio('');
+  };
+
+
+  const handleEditarPrecio = (idMeal, nuevoPrecioNum) => {
+    if (Number.isNaN(nuevoPrecioNum) || nuevoPrecioNum < 0) {
+      alert(' Precio inválido.');
+      return;
+    }
+    setMenu((prev) =>
+      prev.map((plato) =>
+        plato.idMeal === idMeal ? { ...plato, precio: nuevoPrecioNum } : plato
+      )
+    );
+  };
+
+
+  const handleEliminar = (idMeal) => {
+    setMenu((prev) => prev.filter((plato) => plato.idMeal !== idMeal));
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-container">
+      <Navbar />
 
-      <div className="ticks"></div>
+      <main className="main-content">
+ 
+        <section className="seccion-api">
+          <h2 className="seccion-titulo"> Cargar desde API</h2>
+          <button
+            className="btn btn-primary"
+            onClick={cargarDesdeAPI}
+            disabled={loading}
+          >
+            {loading ? 'Cargando...' : 'Cargar Platos Chilenos'}
+          </button>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          {error && (
+            <div className="error-box">
+              <p> {error}</p>
+              <button className="btn btn-reintentar" onClick={cargarDesdeAPI}>
+                 Reintentar
+              </button>
+            </div>
+          )}
+        </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+
+        <section className="seccion-form">
+          <h2 className="seccion-titulo"> Agregar Plato Manual</h2>
+          <div className="form-agregar">
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Nombre del plato"
+              value={nuevoNombre}
+              onChange={(e) => setNuevoNombre(e.target.value)}
+            />
+            <input
+              type="number"
+              className="form-input"
+              placeholder="Precio (CLP)"
+              value={nuevoPrecio}
+              onChange={(e) => setNuevoPrecio(e.target.value)}
+              min="0"
+            />
+            <button className="btn btn-agregar" onClick={handleAgregarPlato}>
+              Agregar
+            </button>
+          </div>
+        </section>
+
+
+        <section className="seccion-menu">
+          <h2 className="seccion-titulo">
+             Menú Actual{' '}
+            <span className="menu-count">({menu.length} platos)</span>
+          </h2>
+          <MenuPizarra
+            menu={menu}
+            onEditar={handleEditarPrecio}
+            onEliminar={handleEliminar}
+          />
+        </section>
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;
